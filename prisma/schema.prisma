@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  EDITOR
+  ADMIN
+}
+
+enum WordType {
+  WORD
+  PHRASE
+  IDIOM
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  xp           Int      @default(0)
+  level        Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  wordStats     UserWordStat[]
+  topicProgress UserTopicProgress[]
+  sessions      Session[]
+}
+
+model Word {
+  id         String   @id @default(cuid())
+  kyrgyz     String   @unique
+  russian    String
+  type       WordType @default(WORD)
+  topic      String
+  pos        String?
+  difficulty Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  userStats UserWordStat[]
+}
+
+model UserWordStat {
+  id          String    @id @default(cuid())
+  userId      String
+  wordId      String
+  shown       Int       @default(0)
+  correct     Int       @default(0)
+  incorrect   Int       @default(0)
+  lastShownAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word Word @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wordId])
+}
+
+model UserTopicProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  topic       String
+  completed   Boolean   @default(false)
+  bestScore   Int       @default(0)
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topic])
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  userId         String
+  mode           String
+  topic          String?
+  score          Int      @default(0)
+  totalQuestions Int      @default(0)
+  xpEarned       Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
