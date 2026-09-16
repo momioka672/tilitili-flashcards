@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import DashboardLoading from "./loading";
 
 type User = {
   id: string;
@@ -72,13 +73,7 @@ export default function DashboardPage() {
     router.push(`/session?mode=topic&topic=${encodeURIComponent(topic)}&direction=${direction}`);
   }
 
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </main>
-    );
-  }
+  if (loading) return <DashboardLoading />;
 
   if (!user) return null;
 

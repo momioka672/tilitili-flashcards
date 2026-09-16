@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { XP_PER_LEVEL, getRank } from "@/lib/levels";
+import ProfileLoading from "./loading";
 
 type Profile = {
   user: {
@@ -45,13 +46,7 @@ export default function ProfilePage() {
     window.location.href = "/login";
   }
 
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </main>
-    );
-  }
+  if (loading) return <ProfileLoading />;
 
   if (!profile) return null;
 

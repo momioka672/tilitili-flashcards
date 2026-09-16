@@ -4,6 +4,9 @@ import { requireEditor } from "@/lib/api";
 import { WordType } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
+  const auth = requireEditor(req);
+  if (auth instanceof NextResponse) return auth;
+
   const { searchParams } = req.nextUrl;
   const topic = searchParams.get("topic") ?? undefined;
   const type = searchParams.get("type") as WordType | null;
