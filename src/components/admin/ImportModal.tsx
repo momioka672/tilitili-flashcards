@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import Modal from "./Modal";
+import Modal from "@/components/ui/Modal";
 
 type ParsedWord = {
   kyrgyz: string;

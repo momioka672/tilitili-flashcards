@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Modal from "@/components/ui/Modal";
-import WordForm, { WordFormData } from "@/components/ui/WordForm";
-import ImportModal from "@/components/ui/ImportModal";
+import WordForm, { WordFormData } from "@/components/admin/WordForm";
+import ImportModal from "@/components/admin/ImportModal";
 
 type Word = {
   id: string;
