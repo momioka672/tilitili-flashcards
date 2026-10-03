@@ -4,6 +4,9 @@ import { requireEditor } from "@/lib/api";
 import { WordType } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
+  const auth = requireEditor(req);
+  if (auth instanceof NextResponse) return auth;
+
   const { searchParams } = req.nextUrl;
   const topic = searchParams.get("topic") ?? undefined;
   const type = searchParams.get("type") as WordType | null;
@@ -11,6 +14,13 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") ?? undefined;
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
   const PAGE_SIZE = 50;
+
+  const SORTABLE = ["kyrgyz", "russian", "type", "topic", "difficulty", "createdAt"] as const;
+  const sortParam = searchParams.get("sort");
+  const sortBy = SORTABLE.includes(sortParam as (typeof SORTABLE)[number])
+    ? (sortParam as (typeof SORTABLE)[number])
+    : "createdAt";
+  const order = searchParams.get("order") === "asc" ? "asc" : "desc";
 
   const where = {
     ...(topic ? { topic } : {}),
@@ -29,7 +39,7 @@ export async function GET(req: NextRequest) {
   const [words, total] = await Promise.all([
     prisma.word.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: { [sortBy]: order },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),

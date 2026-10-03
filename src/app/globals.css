@@ -7,17 +7,18 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Поля ввода наследовали бы цвет темы браузера на светлом фоне страницы */
+input,
+select,
+textarea,
+button {
+  color: var(--foreground);
 }
 
 @layer utilities {

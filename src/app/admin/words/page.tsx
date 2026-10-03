@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Modal from "@/components/ui/Modal";
-import WordForm, { WordFormData } from "@/components/ui/WordForm";
-import ImportModal from "@/components/ui/ImportModal";
+import WordForm, { WordFormData } from "@/components/admin/WordForm";
+import ImportModal from "@/components/admin/ImportModal";
 
 type Word = {
   id: string;
@@ -18,6 +18,16 @@ type Word = {
 const TOPICS = ["", "Природа", "Погода", "Общее", "Работа", "Еда", "Семья", "Школа", "Язык", "Животные", "Дом", "Город", "Транспорт", "Одежда", "Здоровье", "Время", "Цвета", "Праздник", "Эмоции", "Спорт", "Путешествия"];
 const TYPE_LABELS: Record<string, string> = { WORD: "Слово", PHRASE: "Фраза", IDIOM: "Идиома" };
 
+type SortField = "kyrgyz" | "russian" | "type" | "topic" | "difficulty";
+
+const COLUMNS: { field: SortField; label: string; cellClass: string }[] = [
+  { field: "kyrgyz", label: "Кыргызское", cellClass: "" },
+  { field: "russian", label: "Перевод", cellClass: "" },
+  { field: "type", label: "Тип", cellClass: "hidden sm:table-cell" },
+  { field: "topic", label: "Топик", cellClass: "hidden md:table-cell" },
+  { field: "difficulty", label: "Сложность", cellClass: "hidden md:table-cell" },
+];
+
 export default function AdminWordsPage() {
   const [words, setWords] = useState<Word[]>([]);
   const [total, setTotal] = useState(0);
@@ -26,6 +36,8 @@ export default function AdminWordsPage() {
   const [type, setType] = useState("");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [sort, setSort] = useState<SortField | null>(null);
+  const [order, setOrder] = useState<"asc" | "desc">("asc");
 
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -41,14 +53,21 @@ export default function AdminWordsPage() {
     if (topic) params.set("topic", topic);
     if (type) params.set("type", type);
     if (search) params.set("search", search);
+    if (sort) { params.set("sort", sort); params.set("order", order); }
     const res = await fetch(`/api/words?${params}`);
     const data = await res.json();
     setWords(data.words ?? []);
     setTotal(data.total ?? 0);
     setLoading(false);
-  }, [page, topic, type, search]);
+  }, [page, topic, type, search, sort, order]);
 
   useEffect(() => { fetchWords(); }, [fetchWords]);
+
+  function handleSort(field: SortField) {
+    setOrder(sort === field && order === "asc" ? "desc" : "asc");
+    setSort(field);
+    setPage(1);
+  }
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -115,19 +134,19 @@ export default function AdminWordsPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Поиск по слову..."
-              className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button type="submit" className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors">Найти</button>
+            <button type="submit" className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">Найти</button>
           </form>
 
           <select value={topic} onChange={(e) => { setTopic(e.target.value); setPage(1); }}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Все топики</option>
             {TOPICS.filter(Boolean).map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
 
           <select value={type} onChange={(e) => { setType(e.target.value); setPage(1); }}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Все типы</option>
             <option value="WORD">Слово</option>
             <option value="PHRASE">Фраза</option>
@@ -146,11 +165,20 @@ export default function AdminWordsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Кыргызское</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Перевод</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">Тип</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Топик</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Сложность</th>
+                    {COLUMNS.map(({ field, label, cellClass }) => (
+                      <th key={field} className={`text-left font-medium text-gray-600 ${cellClass}`}>
+                        <button
+                          onClick={() => handleSort(field)}
+                          className="w-full flex items-center gap-1 px-4 py-3 hover:text-gray-900 transition-colors"
+                          aria-sort={sort === field ? (order === "asc" ? "ascending" : "descending") : "none"}
+                        >
+                          {label}
+                          <span className={sort === field ? "text-blue-600" : "text-gray-300"}>
+                            {sort === field ? (order === "asc" ? "↑" : "↓") : "↕"}
+                          </span>
+                        </button>
+                      </th>
+                    ))}
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
@@ -186,12 +214,12 @@ export default function AdminWordsPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 mt-4">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors">
+              className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors">
               ← Назад
             </button>
             <span className="text-sm text-gray-600">{page} / {totalPages}</span>
             <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors">
+              className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors">
               Вперёд →
             </button>
           </div>
@@ -227,7 +255,7 @@ export default function AdminWordsPage() {
           <p className="text-gray-600 mb-6">Это действие нельзя отменить. Слово будет удалено вместе со статистикой пользователей.</p>
           <div className="flex gap-3">
             <button onClick={() => setDeleteId(null)}
-              className="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+              className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 font-medium hover:bg-gray-50 transition-colors">
               Отмена
             </button>
             <button onClick={handleDelete}

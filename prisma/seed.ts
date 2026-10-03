@@ -1,48 +1,190 @@
 import "dotenv/config";
-import { PrismaClient, WordType } from "@prisma/client";
+import { PrismaClient, WordType, Role } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import bcrypt from "bcryptjs";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
-const words = [
-  // Топик: Природа (10 слов)
-  { kyrgyz: "суу", russian: "вода", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 1 },
-  { kyrgyz: "от", russian: "огонь", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 1 },
-  { kyrgyz: "жер", russian: "земля", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 1 },
-  { kyrgyz: "аба", russian: "воздух", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 1 },
-  { kyrgyz: "тоо", russian: "гора", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 1 },
-  { kyrgyz: "дарыя", russian: "река", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 2 },
-  { kyrgyz: "көл", russian: "озеро", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 1 },
-  { kyrgyz: "токой", russian: "лес", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 2 },
-  { kyrgyz: "таш", russian: "камень", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 1 },
-  { kyrgyz: "гүл", russian: "цветок", type: WordType.WORD, topic: "Природа", pos: "noun", difficulty: 1 },
+type Entry = [kyrgyz: string, russian: string, pos?: string];
 
-  // Топик: Семья (10 слов)
-  { kyrgyz: "апа", russian: "мама", type: WordType.WORD, topic: "Семья", pos: "noun", difficulty: 1 },
-  { kyrgyz: "ата", russian: "папа", type: WordType.WORD, topic: "Семья", pos: "noun", difficulty: 1 },
-  { kyrgyz: "эже", russian: "старшая сестра", type: WordType.WORD, topic: "Семья", pos: "noun", difficulty: 1 },
-  { kyrgyz: "байке", russian: "старший брат", type: WordType.WORD, topic: "Семья", pos: "noun", difficulty: 1 },
-  { kyrgyz: "бала", russian: "ребёнок", type: WordType.WORD, topic: "Семья", pos: "noun", difficulty: 1 },
-  { kyrgyz: "кыз", russian: "девочка / дочь", type: WordType.WORD, topic: "Семья", pos: "noun", difficulty: 1 },
-  { kyrgyz: "уул", russian: "мальчик / сын", type: WordType.WORD, topic: "Семья", pos: "noun", difficulty: 1 },
-  { kyrgyz: "чоң апа", russian: "бабушка", type: WordType.PHRASE, topic: "Семья", pos: "noun", difficulty: 2 },
-  { kyrgyz: "чоң ата", russian: "дедушка", type: WordType.PHRASE, topic: "Семья", pos: "noun", difficulty: 2 },
-  { kyrgyz: "үй-бүлө", russian: "семья", type: WordType.WORD, topic: "Семья", pos: "noun", difficulty: 2 },
-];
+// Словарь по топикам в порядке прогрессии (см. src/lib/topics.ts)
+const DICTIONARY: Record<string, Entry[]> = {
+  "Природа": [
+    ["суу", "вода", "noun"], ["от", "огонь", "noun"], ["жер", "земля", "noun"],
+    ["аба", "воздух", "noun"], ["тоо", "гора", "noun"], ["дарыя", "река", "noun"],
+    ["көл", "озеро", "noun"], ["токой", "лес", "noun"], ["таш", "камень", "noun"],
+    ["гүл", "цветок", "noun"], ["асман", "небо", "noun"], ["күн", "солнце", "noun"],
+    ["ай", "луна", "noun"], ["жылдыз", "звезда", "noun"], ["дарак", "дерево", "noun"],
+  ],
+  "Семья": [
+    ["апа", "мама", "noun"], ["ата", "папа", "noun"], ["эже", "старшая сестра", "noun"],
+    ["байке", "старший брат", "noun"], ["бала", "ребёнок", "noun"], ["кыз", "девочка", "noun"],
+    ["уул", "сын", "noun"], ["чоң апа", "бабушка", "noun"], ["чоң ата", "дедушка", "noun"],
+    ["үй-бүлө", "семья", "noun"], ["аял", "жена", "noun"], ["күйөө", "муж", "noun"],
+    ["карындаш", "младшая сестра", "noun"], ["ини", "младший брат", "noun"],
+    ["тууган", "родственник", "noun"],
+  ],
+  "Еда": [
+    ["нан", "хлеб", "noun"], ["эт", "мясо", "noun"], ["сүт", "молоко", "noun"],
+    ["май", "масло", "noun"], ["туз", "соль", "noun"],
+    ["күрүч", "рис", "noun"],
+    ["алма", "яблоко", "noun"], ["жумуртка", "яйцо", "noun"], ["бал", "мёд", "noun"],
+    ["чай", "чай", "noun"], ["аш", "еда", "noun"], ["сорпо", "суп", "noun"],
+    ["быштак", "творог", "noun"], ["кант", "сахар", "noun"], ["жемиш", "фрукт", "noun"],
+  ],
+  "Животные": [
+    ["ит", "собака", "noun"], ["мышык", "кошка", "noun"], ["ат", "лошадь", "noun"],
+    ["уй", "корова", "noun"], ["кой", "овца", "noun"], ["эчки", "коза", "noun"],
+    ["тоок", "курица", "noun"], ["куш", "птица", "noun"], ["балык", "рыба", "noun"],
+    ["карышкыр", "волк", "noun"], ["аюу", "медведь", "noun"], ["түлкү", "лиса", "noun"],
+    ["коён", "заяц", "noun"], ["жылкы", "конь", "noun"], ["төө", "верблюд", "noun"],
+  ],
+  "Цвета": [
+    ["ак", "белый", "adj"], ["кара", "чёрный", "adj"], ["кызыл", "красный", "adj"],
+    ["көк", "синий", "adj"], ["жашыл", "зелёный", "adj"], ["сары", "жёлтый", "adj"],
+    ["боз", "серый", "adj"], ["күрөң", "коричневый", "adj"], ["кызгылт", "розовый", "adj"],
+    ["алтын", "золотой", "adj"], ["күмүш", "серебряный", "adj"], ["ачык", "светлый", "adj"],
+  ],
+  "Дом": [
+    ["үй", "дом", "noun"], ["эшик", "дверь", "noun"], ["терезе", "окно", "noun"],
+    ["стол", "стол", "noun"], ["орундук", "стул", "noun"], ["төшөк", "постель", "noun"],
+    ["бөлмө", "комната", "noun"], ["ашкана", "кухня", "noun"], ["дубал", "стена", "noun"],
+    ["чатыр", "крыша", "noun"], ["килем", "ковёр", "noun"], ["идиш", "посуда", "noun"],
+  ],
+  "Школа": [
+    ["мектеп", "школа", "noun"], ["мугалим", "учитель", "noun"], ["окуучу", "ученик", "noun"],
+    ["китеп", "книга", "noun"], ["дептер", "тетрадь", "noun"], ["калем", "ручка", "noun"],
+    ["сабак", "урок", "noun"], ["тапшырма", "задание", "noun"], ["доска", "доска", "noun"],
+    ["окуу", "учёба", "noun"], ["билим", "знание", "noun"], ["суроо", "вопрос", "noun"],
+  ],
+  "Время": [
+    ["убакыт", "время", "noun"], ["саат", "час", "noun"], ["мүнөт", "минута", "noun"],
+    ["секунд", "секунда", "noun"], ["түн", "ночь", "noun"], ["эртең", "завтра", "adv"],
+    ["бүгүн", "сегодня", "adv"], ["кече", "вчера", "adv"], ["жума", "неделя", "noun"],
+    ["жыл", "год", "noun"], ["кыш", "зима", "noun"], ["эртең менен", "утром", "adv"],
+  ],
+  "Погода": [
+    ["аба ырайы", "погода", "noun"], ["жамгыр", "дождь", "noun"], ["кар", "снег", "noun"],
+    ["шамал", "ветер", "noun"], ["булут", "облако", "noun"], ["ысык", "жарко", "adj"],
+    ["суук", "холодно", "adj"], ["жылуу", "тепло", "adj"], ["муз", "лёд", "noun"],
+    ["туман", "туман", "noun"], ["чагылган", "молния", "noun"],
+  ],
+  "Город": [
+    ["шаар", "город", "noun"], ["көчө", "улица", "noun"], ["базар", "рынок", "noun"],
+    ["дүкөн", "магазин", "noun"], ["аянт", "площадь", "noun"], ["парк", "парк", "noun"],
+    ["оорукана", "больница", "noun"], ["банк", "банк", "noun"], ["мейманкана", "гостиница", "noun"],
+    ["көпүрө", "мост", "noun"], ["айыл", "село", "noun"],
+  ],
+  "Транспорт": [
+    ["машина", "машина", "noun"], ["автобус", "автобус", "noun"], ["поезд", "поезд", "noun"],
+    ["учак", "самолёт", "noun"], ["велосипед", "велосипед", "noun"], ["такси", "такси", "noun"],
+    ["жол", "дорога", "noun"], ["аялдама", "остановка", "noun"], ["билет", "билет", "noun"],
+    ["айдоочу", "водитель", "noun"], ["кеме", "корабль", "noun"],
+  ],
+  "Одежда": [
+    ["кийим", "одежда", "noun"], ["көйнөк", "платье", "noun"], ["шым", "брюки", "noun"],
+    ["бут кийим", "обувь", "noun"], ["калпак", "колпак", "noun"], ["жоолук", "платок", "noun"],
+    ["пальто", "пальто", "noun"], ["көйнөкчө", "рубашка", "noun"], ["байпак", "носки", "noun"],
+    ["кемер", "ремень", "noun"], ["чапан", "халат", "noun"],
+  ],
+  "Здоровье": [
+    ["ден соолук", "здоровье", "noun"], ["дарыгер", "врач", "noun"], ["дары", "лекарство", "noun"],
+    ["ооруу", "болезнь", "noun"], ["баш", "голова", "noun"], ["кол", "рука", "noun"],
+    ["бут", "нога", "noun"], ["көз", "глаз", "noun"], ["жүрөк", "сердце", "noun"],
+    ["тиш", "зуб", "noun"], ["кан", "кровь", "noun"], ["сак бол", "будь здоров", "phrase"],
+  ],
+  "Работа": [
+    ["жумуш", "работа", "noun"], ["кызматкер", "сотрудник", "noun"], ["акча", "деньги", "noun"],
+    ["айлык", "зарплата", "noun"], ["кеңсе", "офис", "noun"], ["жолугушуу", "встреча", "noun"],
+    ["долбоор", "проект", "noun"], ["башчы", "начальник", "noun"], ["иштөө", "работать", "verb"],
+    ["тажрыйба", "опыт", "noun"], ["келишим", "договор", "noun"],
+  ],
+  "Язык": [
+    ["тил", "язык", "noun"], ["сөз", "слово", "noun"], ["сүйлөм", "предложение", "noun"],
+    ["котормо", "перевод", "noun"], ["жазуу", "письмо", "noun"], ["айтуу", "произношение", "noun"],
+    ["сүйлөшүү", "разговор", "noun"], ["үн", "звук", "noun"], ["тамга", "буква", "noun"],
+    ["грамматика", "грамматика", "noun"], ["маани", "значение", "noun"],
+  ],
+  "Эмоции": [
+    ["кубаныч", "радость", "noun"], ["кайгы", "грусть", "noun"], ["коркуу", "страх", "noun"],
+    ["ачуу", "гнев", "noun"], ["сүйүү", "любовь", "noun"], ["үмүт", "надежда", "noun"],
+    ["жылмаюу", "улыбка", "noun"], ["күлкү", "смех", "noun"], ["таң калуу", "удивление", "noun"],
+    ["бактылуу", "счастливый", "adj"], ["капа", "обида", "noun"],
+  ],
+  "Спорт": [
+    ["спорт", "спорт", "noun"], ["футбол", "футбол", "noun"], ["чуркоо", "бег", "noun"],
+    ["сүзүү", "плавание", "noun"], ["оюн", "игра", "noun"], ["команда", "команда", "noun"],
+    ["жеңиш", "победа", "noun"], ["утулуу", "поражение", "noun"], ["машыгуу", "тренировка", "noun"],
+    ["топ", "мяч", "noun"], ["күрөш", "борьба", "noun"],
+  ],
+  "Праздник": [
+    ["майрам", "праздник", "noun"], ["той", "торжество", "noun"], ["белек", "подарок", "noun"],
+    ["конок", "гость", "noun"], ["куттуктоо", "поздравление", "noun"], ["Нооруз", "Навруз", "noun"],
+    ["ырым", "обычай", "noun"], ["бий", "танец", "noun"], ["ыр", "песня", "noun"],
+    ["дасторкон", "застолье", "noun"], ["куттуу болсун", "поздравляю", "phrase"],
+  ],
+  "Путешествия": [
+    ["саякат", "путешествие", "noun"], ["чек ара", "граница", "noun"], ["паспорт", "паспорт", "noun"],
+    ["карта", "карта", "noun"], ["баштоо", "начало", "noun"], ["жолоочу", "путник", "noun"],
+    ["дем алуу", "отдых", "noun"], ["көрүнүш", "вид", "noun"], ["жүк", "багаж", "noun"],
+    ["аэропорт", "аэропорт", "noun"], ["жакшы жол", "счастливого пути", "phrase"],
+  ],
+  "Общее": [
+    ["салам", "привет", "phrase"], ["рахмат", "спасибо", "phrase"], ["ооба", "да", "particle"],
+    ["жок", "нет", "particle"], ["кечиресиз", "извините", "phrase"], ["жакшы", "хорошо", "adj"],
+    ["жаман", "плохо", "adj"], ["чоң", "большой", "adj"], ["кичине", "маленький", "adj"],
+    ["көп", "много", "adv"], ["аз", "мало", "adv"], ["кош болуңуз", "до свидания", "phrase"],
+  ],
+};
+
+// type определяется по количеству слов, difficulty — по длине кыргызского слова
+function classify(kyrgyz: string, pos?: string): { type: WordType; difficulty: number } {
+  const wordCount = kyrgyz.trim().split(/\s+/).length;
+  const type =
+    pos === "phrase" ? WordType.PHRASE : wordCount > 1 ? WordType.PHRASE : WordType.WORD;
+
+  const len = kyrgyz.replace(/\s+/g, "").length;
+  const difficulty = wordCount > 1 || len > 8 ? 3 : len > 5 ? 2 : 1;
+
+  return { type, difficulty };
+}
 
 async function main() {
   console.log("Seeding database...");
 
-  for (const word of words) {
-    await prisma.word.upsert({
-      where: { kyrgyz: word.kyrgyz },
-      update: {},
-      create: word,
-    });
+  let count = 0;
+  for (const [topic, entries] of Object.entries(DICTIONARY)) {
+    for (const [kyrgyz, russian, pos] of entries) {
+      const { type, difficulty } = classify(kyrgyz, pos);
+      await prisma.word.upsert({
+        where: { kyrgyz },
+        update: {},
+        create: {
+          kyrgyz,
+          russian,
+          topic,
+          type,
+          difficulty,
+          pos: pos === "phrase" ? null : pos ?? null,
+        },
+      });
+      count++;
+    }
   }
+  console.log(`Seeded ${count} words across ${Object.keys(DICTIONARY).length} topics.`);
 
-  console.log(`Seeded ${words.length} words.`);
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
+  await prisma.user.upsert({
+    where: { username: "admin" },
+    update: {},
+    create: {
+      username: "admin",
+      passwordHash: await bcrypt.hash(adminPassword, 10),
+      role: Role.ADMIN,
+    },
+  });
+  console.log('Admin user "admin" is ready.');
 }
 
 main()

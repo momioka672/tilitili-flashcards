@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { generateQuestion } from "@/lib/questions";
 import type { Question, Direction } from "@/lib/questions";
+import { QuestionCard } from "@/components/quiz/QuestionCard";
 
 type Word = {
   id: string;
@@ -236,49 +237,12 @@ function SessionPageInner() {
       {/* Question area */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
         <div className="w-full max-w-md space-y-8">
-          {/* Type badge */}
-          <div className="text-center">
-            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-              {q.direction === "ky-ru" ? "Кыргызский → Русский" : "Русский → Кыргызский"}
-            </span>
-          </div>
-
-          {/* Prompt word */}
-          <div className="text-center">
-            <p className="text-3xl font-bold text-gray-900 leading-tight">{q.prompt}</p>
-          </div>
-
-          {/* Options */}
-          <div className={`grid gap-3 ${q.type === "B" ? "grid-cols-1" : "grid-cols-1"}`}>
-            {q.options.map((option) => {
-              let btnClass =
-                "w-full py-4 px-5 rounded-2xl text-left text-base font-medium border-2 transition-all duration-200 ";
-
-              if (phase === "feedback") {
-                if (option === q.correctAnswer) {
-                  btnClass += "bg-green-50 border-green-500 text-green-800";
-                } else if (option === selected) {
-                  btnClass += "bg-red-50 border-red-400 text-red-700";
-                } else {
-                  btnClass += "bg-white border-gray-200 text-gray-400";
-                }
-              } else {
-                btnClass +=
-                  "bg-white border-gray-200 text-gray-800 hover:border-blue-400 hover:bg-blue-50 active:scale-[0.98]";
-              }
-
-              return (
-                <button
-                  key={option}
-                  onClick={() => handleAnswer(option)}
-                  disabled={phase === "feedback"}
-                  className={btnClass}
-                >
-                  {option}
-                </button>
-              );
-            })}
-          </div>
+          <QuestionCard
+            question={q}
+            selected={selected}
+            showFeedback={phase === "feedback"}
+            onAnswer={handleAnswer}
+          />
 
           {/* Feedback */}
           {phase === "feedback" && (

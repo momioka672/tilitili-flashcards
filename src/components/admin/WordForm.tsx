@@ -19,6 +19,17 @@ type Props = {
 
 const TOPICS = ["Природа", "Погода", "Общее", "Работа", "Еда", "Семья", "Школа", "Язык", "Животные", "Дом", "Город", "Транспорт", "Одежда", "Здоровье", "Время", "Цвета", "Праздник", "Эмоции", "Спорт", "Путешествия"];
 
+const POS_OPTIONS: [value: string, label: string][] = [
+  ["noun", "Существительное"],
+  ["verb", "Глагол"],
+  ["adj", "Прилагательное"],
+  ["adv", "Наречие"],
+  ["pronoun", "Местоимение"],
+  ["numeral", "Числительное"],
+  ["particle", "Частица"],
+  ["phrase", "Фраза"],
+];
+
 export default function WordForm({ initial, onSubmit, submitLabel }: Props) {
   const [form, setForm] = useState<WordFormData>({
     kyrgyz: initial?.kyrgyz ?? "",
@@ -59,20 +70,20 @@ export default function WordForm({ initial, onSubmit, submitLabel }: Props) {
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Кыргызское слово *</label>
         <input value={form.kyrgyz} onChange={(e) => set("kyrgyz", e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Перевод (рус.) *</label>
         <input value={form.russian} onChange={(e) => set("russian", e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Топик *</label>
           <select value={form.topic} onChange={(e) => set("topic", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="">— выбрать —</option>
             {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -81,7 +92,7 @@ export default function WordForm({ initial, onSubmit, submitLabel }: Props) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Тип</label>
           <select value={form.type} onChange={(e) => set("type", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="WORD">Слово</option>
             <option value="PHRASE">Фраза</option>
             <option value="IDIOM">Идиома</option>
@@ -92,14 +103,17 @@ export default function WordForm({ initial, onSubmit, submitLabel }: Props) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Часть речи</label>
-          <input value={form.pos} onChange={(e) => set("pos", e.target.value)} placeholder="noun, verb..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <select value={form.pos} onChange={(e) => set("pos", e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="">— не указано —</option>
+            {POS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Сложность</label>
           <select value={form.difficulty} onChange={(e) => set("difficulty", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="1">1 — лёгкое</option>
             <option value="2">2 — среднее</option>
             <option value="3">3 — сложное</option>
